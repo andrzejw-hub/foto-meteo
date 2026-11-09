@@ -98,7 +98,7 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
   <header>
     <div class="eyebrow">Dolny Śląsk · prognoza na 2 dni</div>
     <h1>Foto Meteo</h1>
-    <p class="lede">Szanse na morze chmur, mgły w dolinach, kolorowe niebo i dobrą przejrzystość przy kolejnych wschodach i zachodach słońca. Ocena 0–100 pokazuje najlepszy z warunków, na które czekamy w danym miejscu.</p>
+    <p class="lede">Szanse na morze chmur, mgły w dolinach, kolorowe niebo i dobrą przejrzystość przy kolejnych wschodach i zachodach słońca. Ocena 0–100 pokazuje najlepszy z warunków, na które czekamy w danym miejscu, a po wybraniu filtra warunku – ocenę tego warunku. Miejsca z najwyższą oceną są na górze.</p>
     <div class="meta"><span id="updated">Pobieranie prognozy…</span><button class="btn" id="refresh" type="button">Odśwież</button></div>
   </header>
 
@@ -159,10 +159,24 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
     });
   }
 
+  // Ocena zdarzenia: przy wybranym warunku – ocena tego warunku, inaczej najlepsza z warunków miejsca
+  function evScore(ev) {
+    if (!ev) return null;
+    if (state.cond === "all") return ev.best ? { score: ev.best.score, cond: ev.best.cond } : null;
+    var d = ev.details[state.cond];
+    return d ? { score: d.score, cond: state.cond } : null;
+  }
+  function rowMax(r) {
+    var m = -1;
+    r.events.slice(0, 4).forEach(function (ev) { var s = evScore(ev); if (s && s.score > m) m = s.score; });
+    return m;
+  }
+
   function cellHtml(ev, nowIso) {
-    if (!ev || !ev.best) return '<div class="cell none">–<small>&nbsp;</small></div>';
-    var lv = FS.level(ev.best.score);
-    return '<div class="cell ' + lv.key + '" title="' + esc(dayLabel(ev.time, nowIso) + " " + EV[ev.kind] + " " + hhmm(ev.time)) + '">' + ev.best.score + "<small>" + (ev.kind === "sunrise" ? "☀↑" : "☀↓") + "</small></div>";
+    var sc = evScore(ev);
+    if (!sc) return '<div class="cell none">–<small>&nbsp;</small></div>';
+    var lv = FS.level(sc.score);
+    return '<div class="cell ' + lv.key + '" title="' + esc(dayLabel(ev.time, nowIso) + " " + EV[ev.kind] + " " + hhmm(ev.time) + " · " + FS.CONDS[sc.cond]) + '">' + sc.score + "<small>" + (ev.kind === "sunrise" ? "☀↑" : "☀↓") + "</small></div>";
   }
 
   function render() {
@@ -172,20 +186,22 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
         (state.kind === "all" || r.spot.kind === state.kind) &&
         (state.cond === "all" || (r.spot.conds || []).indexOf(state.cond) >= 0);
     });
+    // Sortowanie: najwyższa ocena w najbliższych 4 oknach, przy remisie krótszy dojazd
+    rows.sort(function (a, b) { return rowMax(b) - rowMax(a) || (a.spot.driveMin || 999) - (b.spot.driveMin || 999); });
 
-    // Najlepsze okazje (ze wszystkich aktywnych miejsc, bez filtrów)
+    // Najlepsze okazje (wszystkie typy miejsc, z uwzględnieniem wybranego warunku)
     var picks = [];
     state.results.forEach(function (r) {
       if (r.spot.active === false) return;
-      r.events.forEach(function (ev) { if (ev.best && ev.best.score >= 45) picks.push({ r: r, ev: ev }); });
+      r.events.forEach(function (ev) { var s = evScore(ev); if (s && s.score >= 45) picks.push({ r: r, ev: ev, s: s }); });
     });
-    picks.sort(function (a, b) { return b.ev.best.score - a.ev.best.score; });
+    picks.sort(function (a, b) { return b.s.score - a.s.score; });
     $("top").innerHTML = picks.length ? picks.slice(0, 6).map(function (p) {
-      var lv = FS.level(p.ev.best.score);
-      return '<div class="pick ' + lv.key + '"><div class="score">' + p.ev.best.score + '</div>' +
-        '<div class="what">' + esc(p.r.spot.name) + " · " + esc(FS.CONDS[p.ev.best.cond]) + '</div>' +
+      var lv = FS.level(p.s.score);
+      return '<div class="pick ' + lv.key + '"><div class="score">' + p.s.score + '</div>' +
+        '<div class="what">' + esc(p.r.spot.name) + " · " + esc(FS.CONDS[p.s.cond]) + '</div>' +
         '<div class="when">' + dayLabel(p.ev.time, nowIso) + " · " + EV[p.ev.kind] + " " + hhmm(p.ev.time) + " · " + lv.label + "</div></div>";
-    }).join("") : '<div class="empty">W najbliższych dwóch dniach nic nie przekracza progu „możliwe”. Warto zajrzeć jutro.</div>';
+    }).join("") : '<div class="empty">W najbliższych dwóch dniach nic nie przekracza progu „możliwe”' + (state.cond === "all" ? "" : " dla tego warunku") + '. Warto zajrzeć jutro.</div>';
 
     // Nagłówki kolumn wg pierwszego miejsca z kompletem zdarzeń
     var ref = state.results.find(function (r) { return r.events.length >= 4; });
