@@ -84,6 +84,35 @@ details.spot > summary::-webkit-details-marker { display: none; }
 .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); align-items: center; }
 .legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
 footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+/* Edycja miejsc */
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.danger { color: var(--accent); border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.listhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.edit-actions { display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; }
+.estatus { font-size: 14px; color: var(--muted); }
+.estatus.err { color: var(--accent); }
+.tag-off { font: 500 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
+details.spot.off { opacity: .6; }
+dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); padding: 0; width: min(640px, calc(100vw - 24px)); max-height: calc(100vh - 24px); }
+dialog::backdrop { background: rgba(10, 15, 20, .5); }
+dialog form { padding: 20px; display: grid; gap: 14px; }
+dialog h2 { font-size: 24px; }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+label.f { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+label.f small { font-weight: 400; }
+dialog input[type=text], dialog input[type=number], dialog input[type=password], dialog select, dialog textarea {
+  font: 15px var(--f-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+dialog input.mono { font-family: var(--f-mono); font-size: 14px; }
+dialog textarea { min-height: 60px; resize: vertical; }
+dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.checks { display: flex; gap: 8px; flex-wrap: wrap; }
+.checks label { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--ink); border: 1px solid var(--line); padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+.hint { font-size: 13px; color: var(--muted); }
+.ferr { font-size: 14px; color: var(--accent); }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 4px; }
+.steps a { color: var(--sky); }
 @media (max-width: 560px) {
   details.spot > summary { grid-template-columns: 1fr; }
   .colhead { display: none; }
@@ -99,7 +128,7 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
     <div class="eyebrow">Dolny Śląsk · prognoza na 2 dni</div>
     <h1>Foto Meteo</h1>
     <p class="lede">Szanse na morze chmur, mgły w dolinach, kolorowe niebo i dobrą przejrzystość przy kolejnych wschodach i zachodach słońca. Ocena 0–100 pokazuje najlepszy z warunków, na które czekamy w danym miejscu, a po wybraniu filtra warunku – ocenę tego warunku. Miejsca z najwyższą oceną są na górze.</p>
-    <div class="meta"><span id="updated">Pobieranie prognozy…</span><button class="btn" id="refresh" type="button">Odśwież</button></div>
+    <div class="meta"><span id="updated">Pobieranie prognozy…</span><button class="btn" id="refresh" type="button">Odśwież</button><button class="btn" id="editSetup" type="button">Włącz edycję</button></div>
   </header>
 
   <section style="display:grid;gap:12px">
@@ -108,7 +137,8 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
   </section>
 
   <section style="display:grid;gap:12px">
-    <h2>Wszystkie miejsca</h2>
+    <div class="listhead"><h2>Wszystkie miejsca</h2><button class="btn primary" id="addSpot" type="button" hidden>Dodaj miejsce</button></div>
+    <div class="estatus" id="estatus" role="status"></div>
     <div class="bar" id="kindFilter"></div>
     <div class="bar" id="condFilter"></div>
     <div class="legend">
@@ -127,6 +157,58 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
   </footer>
 </div>
 
+<dialog id="spotDlg">
+  <form id="spotForm" autocomplete="off" novalidate>
+    <h2 id="spotTitle">Nowe miejsce</h2>
+    <label class="f">Nazwa <input type="text" id="f-name" required></label>
+    <div class="fgrid">
+      <label class="f">Typ
+        <select id="f-kind"><option value="gora">Góra / punkt widokowy</option><option value="zamek">Zamek / twierdza</option><option value="palac">Pałac</option></select>
+      </label>
+      <label class="f">Pasmo / okolica <input type="text" id="f-area"></label>
+    </div>
+    <label class="f">Współrzędne punktu fotografowania
+      <input type="text" id="f-coords" class="mono" placeholder="50.7360, 15.7400" required>
+      <small>Wklej z Google Maps (prawy klik na mapie → kliknij współrzędne). Najpierw szerokość, potem długość.</small>
+    </label>
+    <div class="fgrid">
+      <label class="f">Wysokość (m n.p.m.) <input type="number" id="f-alt" class="mono" required><small id="altHint">&nbsp;</small></label>
+      <label class="f">Dojazd z Wrocławia (min) <input type="number" id="f-drive" class="mono" min="0" required><small id="driveHint">&nbsp;</small></label>
+    </div>
+    <label class="f">Punkt fotografowania <input type="text" id="f-viewpoint" placeholder="np. skałki nad wsią, widok na zamek od wschodu"></label>
+    <div class="f" style="display:grid;gap:6px"><span class="hint" style="font-weight:600">Warunki, na które czekamy</span><div class="checks" id="f-conds"></div></div>
+    <div class="checks">
+      <label><input type="checkbox" id="f-tower"> Wieża z godzinami otwarcia</label>
+      <label><input type="checkbox" id="f-active" checked> Uwzględniaj w ocenach i alertach</label>
+    </div>
+    <div class="fgrid">
+      <label class="f">Status dostępu
+        <select id="f-status"><option value="ok">Potwierdzony</option><option value="weryfikacja">Do weryfikacji</option><option value="ograniczony">Ograniczony</option></select>
+      </label>
+    </div>
+    <label class="f">Dostęp i godziny otwarcia <textarea id="f-access"></textarea></label>
+    <label class="f">Notatki <textarea id="f-notes"></textarea></label>
+    <div class="ferr" id="spotErr" hidden></div>
+    <div class="dlg-actions"><button class="btn" type="button" id="spotCancel">Anuluj</button><button class="btn primary" type="submit" id="spotSave">Zapisz</button></div>
+  </form>
+</dialog>
+
+<dialog id="tokenDlg">
+  <form id="tokenForm" autocomplete="off">
+    <h2>Edycja listy miejsc</h2>
+    <p class="hint" style="margin:0">Zmiany zapisują się w pliku <code>spots.json</code> w repozytorium, więc korzysta z nich też alert o 19:00. Do zapisu potrzebny jest token GitHuba. Zostaje tylko w tej przeglądarce – inni odwiedzający stronę nie widzą przycisków edycji.</p>
+    <ol class="steps">
+      <li>Otwórz <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">nowy token (fine-grained)</a>.</li>
+      <li>Repository access: <b>Only select repositories</b> → <code id="repoName">foto-meteo</code>.</li>
+      <li>Permissions → Repository → <b>Contents: Read and write</b>. Nic więcej.</li>
+      <li>Wygeneruj token i wklej go poniżej.</li>
+    </ol>
+    <label class="f">Token <input type="password" id="f-token" class="mono" placeholder="github_pat_…"></label>
+    <div class="ferr" id="tokenErr" hidden></div>
+    <div class="dlg-actions"><button class="btn danger" type="button" id="tokenRemove" hidden>Wyłącz edycję i usuń token</button><button class="btn" type="button" id="tokenCancel">Anuluj</button><button class="btn primary" type="submit" id="tokenSave">Zapisz token</button></div>
+  </form>
+</dialog>
+
 <script src="scoring.js"></script>
 <script>
 (function () {
@@ -134,7 +216,13 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
   var FS = window.FotoScore;
   var KINDS = { gora: "Góra", zamek: "Zamek", palac: "Pałac" };
   var EV = { sunrise: "wschód", sunset: "zachód" };
-  var state = { results: [], kind: "all", cond: "all" };
+  var state = { results: [], spots: [], kind: "all", cond: "all" };
+  var TOKEN_KEY = "fotoMeteoToken";
+  var token = "";
+  try { token = localStorage.getItem(TOKEN_KEY) || ""; } catch (e) {}
+  // Repozytorium: z adresu GitHub Pages (użytkownik.github.io/repo/), z domyślnymi wartościami
+  var OWNER = /\.github\.io$/.test(location.hostname) ? location.hostname.split(".")[0] : "andrzejw-hub";
+  var REPO = /\.github\.io$/.test(location.hostname) && location.pathname.split("/")[1] ? location.pathname.split("/")[1] : "foto-meteo";
   var $ = function (id) { return document.getElementById(id); };
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -182,12 +270,14 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
   function render() {
     var nowIso = FS.nowWarsawIso();
     var rows = state.results.filter(function (r) {
-      return r.spot.active !== false &&
+      return (r.spot.active !== false || !!token) &&
         (state.kind === "all" || r.spot.kind === state.kind) &&
         (state.cond === "all" || (r.spot.conds || []).indexOf(state.cond) >= 0);
     });
     // Sortowanie: najwyższa ocena w najbliższych 4 oknach, przy remisie krótszy dojazd
-    rows.sort(function (a, b) { return rowMax(b) - rowMax(a) || (a.spot.driveMin || 999) - (b.spot.driveMin || 999); });
+    rows.sort(function (a, b) {
+      return ((a.spot.active === false) - (b.spot.active === false)) || rowMax(b) - rowMax(a) || (a.spot.driveMin || 999) - (b.spot.driveMin || 999);
+    });
 
     // Najlepsze okazje (wszystkie typy miejsc, z uwzględnieniem wybranego warunku)
     var picks = [];
@@ -231,27 +321,83 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
       }).join("");
       var mb = "https://www.meteoblue.com/pl/pogoda/prognoza/multimodel/" + s.lat.toFixed(3) + "N" + s.lon.toFixed(3) + "E";
       var yr = "https://www.yr.no/en/forecast/daily-table/" + s.lat + "," + s.lon;
-      return '<details class="spot" data-id="' + esc(s.id) + '"' + (open[s.id] ? " open" : "") + "><summary>" +
-        '<div><div class="sname">' + esc(s.name) + '<span class="kind">' + (KINDS[s.kind] || "") + "</span></div>" +
-        '<div class="ssub">' + esc(s.viewpoint || s.area) + " · " + s.alt + " m · " + Math.floor(s.driveMin / 60) + " h " + (s.driveMin % 60) + " min</div></div>" +
+      var edit = token ? '<div class="edit-actions"><button class="btn" type="button" data-edit="' + esc(s.id) + '">Edytuj</button>' +
+        '<button class="btn danger" type="button" data-del="' + esc(s.id) + '">Usuń</button></div>' : "";
+      return '<details class="spot' + (s.active === false ? " off" : "") + '" data-id="' + esc(s.id) + '"' + (open[s.id] ? " open" : "") + "><summary>" +
+        '<div><div class="sname">' + esc(s.name) + '<span class="kind">' + (KINDS[s.kind] || "") + "</span>" + (s.active === false ? '<span class="tag-off">wyłączone</span>' : "") + "</div>" +
+        '<div class="ssub">' + [esc(s.viewpoint || s.area), s.alt + " m", Math.floor(s.driveMin / 60) + " h " + (s.driveMin % 60) + " min"].filter(Boolean).join(" · ") + "</div></div>" +
         '<div class="cells">' + evs.map(function (e) { return cellHtml(e, nowIso); }).join("") + "</div></summary>" +
         '<div class="body">' + body +
         (s.access ? '<div class="access"><b>Dostęp:</b> ' + esc(s.access) + "</div>" : "") +
         (s.notes ? '<div class="access">' + esc(s.notes) + "</div>" : "") +
         '<div class="links"><a href="' + mb + '" target="_blank" rel="noopener">meteoblue – porównanie modeli</a><a href="' + yr + '" target="_blank" rel="noopener">yr.no</a></div>' +
-        "</div></details>";
+        edit + "</div></details>";
     }).join("");
   }
 
-  async function load() {
+  // ---------- GitHub: odczyt i zapis spots.json ----------
+  function b64encode(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function b64decode(b64) { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))); }
+
+  async function gh(path, opts) {
+    opts = opts || {};
+    var res = await fetch("https://api.github.com/repos/" + OWNER + "/" + REPO + path, {
+      method: opts.method || "GET",
+      headers: Object.assign({ "Accept": "application/vnd.github+json", "Authorization": "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28" },
+        opts.body ? { "Content-Type": "application/json" } : {}),
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      cache: "no-store"
+    });
+    if (!res.ok) { var err = new Error("GitHub " + res.status); err.status = res.status; throw err; }
+    return res.json();
+  }
+  async function readSpotsFile() {
+    var f = await gh("/contents/spots.json?ref=main");
+    return { sha: f.sha, spots: JSON.parse(b64decode(f.content)) };
+  }
+  function serialize(spots) {
+    return "[\n" + spots.map(function (s) { return "  " + JSON.stringify(s); }).join(",\n") + "\n]\n";
+  }
+  function ghErrorText(e) {
+    if (e.status === 401) return "GitHub nie przyjął tokenu. Mógł wygasnąć – wklej nowy w „Edycja włączona”.";
+    if (e.status === 403 || e.status === 404) return "Token nie ma uprawnienia do zapisu w repozytorium " + REPO + ". Sprawdź, czy ma Contents: Read and write dla tego repozytorium.";
+    return "Nie udało się zapisać zmian (" + (e.message || "błąd połączenia") + "). Spróbuj ponownie.";
+  }
+  // Czyta świeży plik, stosuje zmianę i zapisuje; przy konflikcie próbuje jeszcze raz
+  async function saveSpots(change, message) {
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var cur = await readSpotsFile();
+      var next = change(cur.spots.slice());
+      try {
+        await gh("/contents/spots.json", { method: "PUT", body: { message: message, content: b64encode(serialize(next)), sha: cur.sha, branch: "main" } });
+        return next;
+      } catch (e) { if (e.status !== 409 || attempt) throw e; }
+    }
+  }
+
+  function setStatus(text, isErr) { var el = $("estatus"); el.textContent = text || ""; el.className = "estatus" + (isErr ? " err" : ""); }
+
+  // ---------- Ładowanie ----------
+  async function loadSpots() {
+    if (token) {
+      try { return (await readSpotsFile()).spots; }
+      catch (e) { setStatus(ghErrorText(e), true); }
+    }
+    return (await fetch("spots.json", { cache: "no-store" })).json();
+  }
+
+  async function loadForecast() {
     $("updated").textContent = "Pobieranie prognozy…";
+    var active = state.spots.filter(function (s) { return s.active !== false; });
+    var inactive = state.spots.filter(function (s) { return s.active === false; });
     try {
-      var spots = await (await fetch("spots.json", { cache: "no-store" })).json();
-      var active = spots.filter(function (s) { return s.active !== false; });
-      var res = await fetch(FS.buildUrl(active));
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      var data = await res.json();
-      state.results = FS.analyze(active, data, FS.nowWarsawIso());
+      var results = [];
+      if (active.length) {
+        var res = await fetch(FS.buildUrl(active));
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        results = FS.analyze(active, await res.json(), FS.nowWarsawIso());
+      }
+      state.results = results.concat(inactive.map(function (s) { return { spot: s, events: [] }; }));
       $("updated").textContent = "Prognoza pobrana " + FS.nowWarsawIso().replace("T", " ");
       render();
     } catch (e) {
@@ -260,9 +406,191 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
     }
   }
 
+  async function load() {
+    try { state.spots = await loadSpots(); }
+    catch (e) { $("top").innerHTML = '<div class="note err">Nie udało się wczytać listy miejsc. Odśwież stronę.</div>'; return; }
+    await loadForecast();
+  }
+
+  // ---------- Tryb edycji ----------
+  function syncEditUi() {
+    $("editSetup").textContent = token ? "Edycja włączona" : "Włącz edycję";
+    $("addSpot").hidden = !token;
+    $("tokenRemove").hidden = !token;
+  }
+  $("repoName").textContent = OWNER + "/" + REPO;
+  $("editSetup").onclick = function () { $("f-token").value = ""; $("tokenErr").hidden = true; $("tokenDlg").showModal(); };
+  $("tokenCancel").onclick = function () { $("tokenDlg").close(); };
+  $("tokenRemove").onclick = function () {
+    token = ""; try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    $("tokenDlg").close(); syncEditUi(); render(); setStatus("Edycja wyłączona, token usunięty z tej przeglądarki.");
+  };
+  $("tokenForm").onsubmit = async function (e) {
+    e.preventDefault();
+    var t = $("f-token").value.trim();
+    if (!t) { $("tokenErr").textContent = "Wklej token."; $("tokenErr").hidden = false; return; }
+    var prev = token; token = t;
+    $("tokenSave").disabled = true;
+    try {
+      var cur = await readSpotsFile();
+      try { localStorage.setItem(TOKEN_KEY, t); } catch (er) {}
+      state.spots = cur.spots;
+      $("tokenDlg").close(); syncEditUi(); setStatus("Edycja włączona.");
+      await loadForecast();
+    } catch (er) {
+      token = prev;
+      $("tokenErr").textContent = er.status === 401 ? "GitHub nie przyjął tego tokenu. Sprawdź, czy skopiowałeś go w całości." : ghErrorText(er);
+      $("tokenErr").hidden = false;
+    }
+    $("tokenSave").disabled = false;
+  };
+
+  // ---------- Formularz miejsca ----------
+  var STATUS_OPTS = ["ok", "weryfikacja", "ograniczony"];
+  $("f-conds").innerHTML = Object.keys(FS.CONDS).map(function (k) {
+    return '<label><input type="checkbox" id="c-' + k + '" value="' + k + '"> ' + esc(FS.CONDS[k]) + "</label>";
+  }).join("");
+  var editingId = null, autoAlt = false, autoDrive = false;
+
+  function parseCoords(str) {
+    str = (str || "").trim();
+    var p = str.split(/[;\s]+|,\s+/).filter(Boolean);
+    if (p.length !== 2) p = str.split(",");
+    if (p.length !== 2) return null;
+    var lat = parseFloat(p[0].replace(",", ".").replace(/[^\d.\-]/g, "")), lon = parseFloat(p[1].replace(",", ".").replace(/[^\d.\-]/g, ""));
+    if (!isFinite(lat) || !isFinite(lon)) return null;
+    return { lat: Math.round(lat * 10000) / 10000, lon: Math.round(lon * 10000) / 10000 };
+  }
+  // Szacunek dojazdu: odległość w linii prostej z Wrocławia × 1,35 przy średnio 65 km/h
+  function estimateDrive(lat, lon) {
+    var R = 6371, toR = Math.PI / 180, la1 = 51.107 * toR, la2 = lat * toR, dLa = (lat - 51.107) * toR, dLo = (lon - 17.038) * toR;
+    var a = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(la1) * Math.cos(la2) * Math.sin(dLo / 2) * Math.sin(dLo / 2);
+    var km = 2 * R * Math.asin(Math.sqrt(a));
+    return Math.round((km * 1.35 / 65 * 60 + 10) / 5) * 5;
+  }
+  async function onCoords() {
+    var c = parseCoords($("f-coords").value);
+    if (!c) return;
+    if (!$("f-drive").value || autoDrive) {
+      $("f-drive").value = estimateDrive(c.lat, c.lon); autoDrive = true;
+      $("driveHint").textContent = "Szacunek – popraw, jeśli znasz czas dojazdu.";
+    }
+    if (!$("f-alt").value || autoAlt) {
+      $("altHint").textContent = "Pobieranie wysokości…";
+      try {
+        var r = await (await fetch("https://api.open-meteo.com/v1/elevation?latitude=" + c.lat + "&longitude=" + c.lon)).json();
+        var el = r && r.elevation && r.elevation[0];
+        if (isFinite(el)) { $("f-alt").value = Math.round(el); autoAlt = true; $("altHint").textContent = "Z modelu terenu – na szczycie bywa zaniżona, popraw w razie potrzeby."; }
+        else $("altHint").textContent = "Nie udało się pobrać wysokości – wpisz ręcznie.";
+      } catch (e) { $("altHint").textContent = "Nie udało się pobrać wysokości – wpisz ręcznie."; }
+    }
+  }
+  $("f-coords").addEventListener("change", onCoords);
+  $("f-alt").addEventListener("input", function () { autoAlt = false; $("altHint").innerHTML = "&nbsp;"; });
+  $("f-drive").addEventListener("input", function () { autoDrive = false; $("driveHint").innerHTML = "&nbsp;"; });
+
+  function openSpotForm(spot) {
+    editingId = spot ? spot.id : null; autoAlt = false; autoDrive = false;
+    var s = spot || { kind: "gora", conds: [], accessStatus: "weryfikacja", active: true };
+    $("spotTitle").textContent = spot ? "Edytuj: " + spot.name : "Nowe miejsce";
+    $("f-name").value = s.name || ""; $("f-kind").value = s.kind || "gora"; $("f-area").value = s.area || "";
+    $("f-coords").value = spot ? s.lat + ", " + s.lon : "";
+    $("f-alt").value = s.alt != null ? s.alt : ""; $("f-drive").value = s.driveMin != null ? s.driveMin : "";
+    $("altHint").innerHTML = "&nbsp;"; $("driveHint").innerHTML = "&nbsp;";
+    $("f-viewpoint").value = s.viewpoint || ""; $("f-access").value = s.access || ""; $("f-notes").value = s.notes || "";
+    $("f-status").value = STATUS_OPTS.indexOf(s.accessStatus) >= 0 ? s.accessStatus : "weryfikacja";
+    $("f-tower").checked = !!s.tower; $("f-active").checked = s.active !== false;
+    Object.keys(FS.CONDS).forEach(function (k) { $("c-" + k).checked = (s.conds || []).indexOf(k) >= 0; });
+    $("spotErr").hidden = true;
+    $("spotDlg").showModal(); $("f-name").focus();
+  }
+  function slugify(name) {
+    return name.toLowerCase().replace(/ł/g, "l").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "miejsce";
+  }
+  function formError(msg) { $("spotErr").textContent = msg; $("spotErr").hidden = false; }
+
+  $("addSpot").onclick = function () { openSpotForm(null); };
+  $("spotCancel").onclick = function () { $("spotDlg").close(); };
+  $("spotForm").onsubmit = async function (e) {
+    e.preventDefault();
+    var name = $("f-name").value.trim();
+    var c = parseCoords($("f-coords").value);
+    var alt = parseInt($("f-alt").value, 10), drive = parseInt($("f-drive").value, 10);
+    var conds = Object.keys(FS.CONDS).filter(function (k) { return $("c-" + k).checked; });
+    if (!name) return formError("Podaj nazwę miejsca.");
+    if (!c) return formError("Nie rozpoznaję współrzędnych. Wpisz je jako „50.7360, 15.7400” – najpierw szerokość, potem długość.");
+    if (c.lat < 49 || c.lat > 55 || c.lon < 14 || c.lon > 24.5) return formError("Te współrzędne są poza Polską. Sprawdź, czy szerokość jest pierwsza.");
+    if (!isFinite(alt)) return formError("Podaj wysokość w metrach n.p.m.");
+    if (!isFinite(drive)) return formError("Podaj czas dojazdu w minutach.");
+    if (!conds.length) return formError("Zaznacz co najmniej jeden warunek, na który czekamy.");
+
+    var data = { name: name, kind: $("f-kind").value, area: $("f-area").value.trim(), driveMin: drive, alt: alt, lat: c.lat, lon: c.lon,
+      viewpoint: $("f-viewpoint").value.trim(), conds: conds, active: $("f-active").checked,
+      accessStatus: $("f-status").value, access: $("f-access").value.trim() };
+    if ($("f-tower").checked) data.tower = true;
+    var notes = $("f-notes").value.trim(); if (notes) data.notes = notes;
+
+    $("spotSave").disabled = true; $("spotSave").textContent = "Zapisywanie…";
+    var wasEditing = editingId;
+    try {
+      var savedId;
+      state.spots = await saveSpots(function (spots) {
+        if (wasEditing) {
+          var i = spots.findIndex(function (s) { return s.id === wasEditing; });
+          if (i < 0) throw Object.assign(new Error("Tego miejsca nie ma już w pliku – mogło zostać usunięte w innym oknie."), { status: 0 });
+          savedId = wasEditing;
+          spots[i] = Object.assign({ id: wasEditing }, data);
+        } else {
+          var id = slugify(name), n = 2;
+          while (spots.some(function (s) { return s.id === id; })) id = slugify(name) + "-" + n++;
+          savedId = id;
+          spots.push(Object.assign({ id: id }, data));
+        }
+        return spots;
+      }, (wasEditing ? "Edycja miejsca: " : "Nowe miejsce: ") + name);
+      $("spotDlg").close();
+      setStatus((wasEditing ? "Zapisano zmiany: " : "Dodano: ") + name + ". Alert uwzględni je od razu; strona dla innych odświeży się w ciągu ok. minuty.");
+      await loadForecast();
+      var d = document.querySelector('details.spot[data-id="' + savedId + '"]');
+      if (d) { d.open = true; d.scrollIntoView({ block: "center" }); }
+    } catch (er) {
+      formError(er.status === 0 ? er.message : ghErrorText(er));
+    }
+    $("spotSave").disabled = false; $("spotSave").textContent = "Zapisz";
+  };
+
+  // ---------- Edycja i usuwanie z listy ----------
+  var pendingDel = null, pendingTimer = null;
+  $("list").addEventListener("click", async function (e) {
+    var eb = e.target.closest("[data-edit]"), db = e.target.closest("[data-del]");
+    if (eb) {
+      var sp = state.spots.find(function (s) { return s.id === eb.dataset.edit; });
+      if (sp) openSpotForm(sp);
+    } else if (db) {
+      var id = db.dataset.del;
+      var spot = state.spots.find(function (s) { return s.id === id; });
+      if (!spot) return;
+      if (pendingDel !== id) {
+        pendingDel = id; db.textContent = "Na pewno usunąć?";
+        clearTimeout(pendingTimer);
+        pendingTimer = setTimeout(function () { pendingDel = null; db.textContent = "Usuń"; }, 4000);
+        return;
+      }
+      clearTimeout(pendingTimer); pendingDel = null;
+      db.disabled = true; db.textContent = "Usuwanie…";
+      try {
+        state.spots = await saveSpots(function (spots) { return spots.filter(function (s) { return s.id !== id; }); }, "Usunięto miejsce: " + spot.name);
+        state.results = state.results.filter(function (r) { return r.spot.id !== id; });
+        render();
+        setStatus("Usunięto: " + spot.name + ".");
+      } catch (er) { setStatus(ghErrorText(er), true); db.disabled = false; db.textContent = "Usuń"; }
+    }
+  });
+
   chips($("kindFilter"), { gora: "Góry", zamek: "Zamki", palac: "Pałace" }, "kind");
   chips($("condFilter"), FS.CONDS, "cond");
   $("refresh").onclick = load;
+  syncEditUi();
   load();
 })();
 </script>
