@@ -7,7 +7,8 @@
  * Zmienne środowiskowe:
  *   NTFY_TOPIC  – nazwa tematu ntfy (sekret repozytorium)
  *   SITE_URL    – adres strony (otwierany po kliknięciu powiadomienia)
- *   FORCE=1     – pomija kontrolę godziny (ręczne uruchomienie)
+ *   SCHEDULE    – wpis cron, który uruchomił przebieg (z GitHub Actions)
+ *   FORCE=1     – pomija kontrolę przebiegu (ręczne uruchomienie)
  *   DRY_RUN=1   – tylko wypisuje wynik, nic nie wysyła
  *   THRESHOLD   – opcjonalnie inny próg (np. 60 do testów)
  */
@@ -25,11 +26,17 @@ function dayLabel(iso, nowIso) {
 
 async function main() {
   const nowIso = FS.nowWarsawIso();
-  const hm = nowIso.slice(11, 16);
-  // Cron startuje o 16:45 i 17:45 UTC; działamy tylko w przebiegu, który w Warszawie wypada ok. 19:00.
-  if (!process.env.FORCE && !(hm >= "18:30" && hm <= "20:15")) {
-    console.log(`Pomijam: w Warszawie jest ${hm}, to nie jest przebieg wieczorny.`);
-    return;
+  // Dwa wpisy cron (16:45 i 17:45 UTC); działa tylko ten, który w Warszawie oznacza 18:45.
+  // Decyduje wpis, który uruchomił przebieg, a nie godzina startu – GitHub potrafi opóźnić start o kilkadziesiąt minut.
+  if (!process.env.FORCE) {
+    const offsetH = Number(nowIso.slice(11, 13)) - new Date().getUTCHours();
+    const offset = ((offsetH % 24) + 24) % 24; // 1 zimą, 2 latem
+    const wanted = offset === 2 ? "45 16 * * *" : "45 17 * * *";
+    const sched = (process.env.SCHEDULE || "").trim();
+    if (sched !== wanted) {
+      console.log(`Pomijam: przebieg z wpisu "${sched}", wieczorny to "${wanted}" (UTC+${offset}).`);
+      return;
+    }
   }
 
   const spots = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "spots.json"), "utf8")).filter(s => s.active !== false);

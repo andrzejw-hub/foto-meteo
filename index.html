@@ -58,7 +58,7 @@ details.spot > summary::-webkit-details-marker { display: none; }
 .sname { font: 600 19px/1.15 var(--f-display); }
 .ssub { font-size: 13.5px; color: var(--muted); }
 .kind { font: 500 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--sky); background: var(--sky-soft); padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
-.cells { display: grid; grid-template-columns: repeat(4, 54px); gap: 4px; }
+.cells { display: grid; grid-template-columns: repeat(var(--n, 4), 54px); gap: 4px; }
 .cell { border-radius: 6px; padding: 4px 0 3px; text-align: center; font: 500 15px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; }
 .cell small { display: block; font: 400 10px var(--f-mono); opacity: .85; }
 .cell.wyjatkowe { background: var(--l-wyjatkowe); color: var(--l-ink-strong); }
@@ -116,7 +116,7 @@ dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-v
 @media (max-width: 560px) {
   details.spot > summary { grid-template-columns: 1fr; }
   .colhead { display: none; }
-  .cells { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cells { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); }
   .cond { grid-template-columns: 1fr 40px; }
   .cond span.why { grid-column: 1 / -1; }
 }
@@ -127,7 +127,7 @@ dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-v
   <header>
     <div class="eyebrow">Dolny Śląsk · prognoza na 2 dni</div>
     <h1>Foto Meteo</h1>
-    <p class="lede">Szanse na morze chmur, mgły w dolinach, kolorowe niebo i dobrą przejrzystość przy kolejnych wschodach i zachodach słońca. Ocena 0–100 pokazuje najlepszy z warunków, na które czekamy w danym miejscu, a po wybraniu filtra warunku – ocenę tego warunku. Miejsca z najwyższą oceną są na górze.</p>
+    <p class="lede">Szanse na morze chmur, mgły w dolinach, kolorowe niebo i dobrą przejrzystość przy kolejnych wschodach i zachodach słońca. Kolumny to wszystkie wschody i zachody w zakresie prognozy. Ocena 0–100 pokazuje najlepszy z warunków, na które czekamy w danym miejscu, a po wybraniu filtra warunku – ocenę tego warunku. Miejsca z najwyższą oceną są na górze.</p>
     <div class="meta"><span id="updated">Pobieranie prognozy…</span><button class="btn" id="refresh" type="button">Odśwież</button><button class="btn" id="editSetup" type="button">Włącz edycję</button></div>
   </header>
 
@@ -254,9 +254,11 @@ dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-v
     var d = ev.details[state.cond];
     return d ? { score: d.score, cond: state.cond } : null;
   }
+  // Liczba kolumn = wszystkie wschody i zachody w zakresie prognozy (zwykle 4–5, przed świtem 6)
+  var NCOLS = 4;
   function rowMax(r) {
     var m = -1;
-    r.events.slice(0, 4).forEach(function (ev) { var s = evScore(ev); if (s && s.score > m) m = s.score; });
+    r.events.slice(0, NCOLS).forEach(function (ev) { var s = evScore(ev); if (s && s.score > m) m = s.score; });
     return m;
   }
 
@@ -269,6 +271,8 @@ dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-v
 
   function render() {
     var nowIso = FS.nowWarsawIso();
+    NCOLS = Math.min(6, Math.max(4, state.results.reduce(function (m, r) { return Math.max(m, r.events.length); }, 0)));
+    document.documentElement.style.setProperty("--n", NCOLS);
     var rows = state.results.filter(function (r) {
       return (r.spot.active !== false || !!token) &&
         (state.kind === "all" || r.spot.kind === state.kind) &&
@@ -294,10 +298,10 @@ dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-v
     }).join("") : '<div class="empty">W najbliższych dwóch dniach nic nie przekracza progu „możliwe”' + (state.cond === "all" ? "" : " dla tego warunku") + '. Warto zajrzeć jutro.</div>';
 
     // Nagłówki kolumn wg pierwszego miejsca z kompletem zdarzeń
-    var ref = state.results.find(function (r) { return r.events.length >= 4; });
+    var ref = state.results.reduce(function (a, r) { return !a || r.events.length > a.events.length ? r : a; }, null);
     if (ref) {
       $("colhead").hidden = false;
-      $("colcells").innerHTML = ref.events.slice(0, 4).map(function (ev) {
+      $("colcells").innerHTML = ref.events.slice(0, NCOLS).map(function (ev) {
         return "<div>" + dayLabel(ev.time, nowIso) + "<br>" + EV[ev.kind] + "</div>";
       }).join("");
     }
@@ -306,9 +310,9 @@ dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-v
     var open = {};
     document.querySelectorAll("details.spot[open]").forEach(function (d) { open[d.dataset.id] = true; });
     $("list").innerHTML = rows.map(function (r) {
-      var s = r.spot, evs = r.events.slice(0, 4);
-      while (evs.length < 4) evs.push(null);
-      var body = r.events.slice(0, 4).map(function (ev) {
+      var s = r.spot, evs = r.events.slice(0, NCOLS);
+      while (evs.length < NCOLS) evs.push(null);
+      var body = r.events.slice(0, NCOLS).map(function (ev) {
         var conds = Object.keys(ev.details).map(function (c) {
           var d = ev.details[c];
           return '<div class="cond"><span>' + esc(FS.CONDS[c]) + "</span><b>" + d.score + '</b><span class="why">' + esc(d.why.join(" · ")) + "</span></div>";
