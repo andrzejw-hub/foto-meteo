@@ -325,6 +325,11 @@ dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-v
       }).join("");
       var mb = "https://www.meteoblue.com/pl/pogoda/prognoza/multimodel/" + s.lat.toFixed(3) + "N" + s.lon.toFixed(3) + "E";
       var yr = "https://www.yr.no/en/forecast/daily-table/" + s.lat + "," + s.lon;
+      var nav = function (lat, lon) { return "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lon; };
+      var pts = (s.points && s.points.length ? s.points : [{ name: "punkt fotografowania", lat: s.lat, lon: s.lon }]);
+      var navHtml = '<div class="links"><span class="hint">Nawiguj:</span>' + pts.map(function (p) {
+        return '<a href="' + nav(p.lat, p.lon) + '" target="_blank" rel="noopener">' + esc(p.name) + "</a>";
+      }).join("") + "</div>";
       var edit = token ? '<div class="edit-actions"><button class="btn" type="button" data-edit="' + esc(s.id) + '">Edytuj</button>' +
         '<button class="btn danger" type="button" data-del="' + esc(s.id) + '">Usuń</button></div>' : "";
       return '<details class="spot' + (s.active === false ? " off" : "") + '" data-id="' + esc(s.id) + '"' + (open[s.id] ? " open" : "") + "><summary>" +
@@ -335,7 +340,7 @@ dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-v
         (s.access ? '<div class="access"><b>Dostęp:</b> ' + esc(s.access) + "</div>" : "") +
         (s.notes ? '<div class="access">' + esc(s.notes) + "</div>" : "") +
         '<div class="links"><a href="' + mb + '" target="_blank" rel="noopener">meteoblue – porównanie modeli</a><a href="' + yr + '" target="_blank" rel="noopener">yr.no</a></div>' +
-        edit + "</div></details>";
+        navHtml + edit + "</div></details>";
     }).join("");
   }
 
@@ -543,7 +548,8 @@ dialog input:focus-visible, dialog select:focus-visible, dialog textarea:focus-v
           var i = spots.findIndex(function (s) { return s.id === wasEditing; });
           if (i < 0) throw Object.assign(new Error("Tego miejsca nie ma już w pliku – mogło zostać usunięte w innym oknie."), { status: 0 });
           savedId = wasEditing;
-          spots[i] = Object.assign({ id: wasEditing }, data);
+          // Formularz nie edytuje dodatkowych punktów (points) – zachowujemy je
+          spots[i] = Object.assign({ id: wasEditing }, data, spots[i].points ? { points: spots[i].points } : {});
         } else {
           var id = slugify(name), n = 2;
           while (spots.some(function (s) { return s.id === id; })) id = slugify(name) + "-" + n++;
