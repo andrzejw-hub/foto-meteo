@@ -4,7 +4,7 @@ Szanse na morze chmur, mgły w dolinach, kolorowe niebo i przejrzystość
 dla wybranych miejsc na Dolnym Śląsku – na kolejne wschody i zachody słońca (2 dni).
 
 - **Strona** (`index.html`) pobiera prognozę z Open-Meteo przy każdym otwarciu.
-- **Alert** (`scripts/alert.js`, GitHub Actions) codziennie ok. 19:00 sprawdza prognozę
+- **Alert** (`scripts/alert.js`, GitHub Actions) codziennie o 18:50 – uruchamiany z cron-job.org – sprawdza prognozę
   i wysyła powiadomienie ntfy tylko przy ocenie ≥ 85 („wyjątkowe”).
 - **Ocena** (`scoring.js`) – wspólna logika dla strony i alertu.
 - **Miejsca** (`spots.json`) – edytuj ten plik, żeby dodać lub wyłączyć lokalizację (`"active": false`).
@@ -22,8 +22,7 @@ dla wybranych miejsc na Dolnym Śląsku – na kolejne wschody i zachody słońc
 
 ## Uwagi
 
-- GitHub wyłącza zaplanowane workflow po 60 dniach bez żadnej aktywności w repozytorium.
-  Wystarczy od czasu do czasu coś zmienić (np. `spots.json`) albo ponownie włączyć workflow w zakładce Actions.
-- Godziny w cronie są w UTC; skrypt sam wybiera przebieg, który w Warszawie wypada ok. 19:00 (latem i zimą).
+- Alert uruchamia zadanie na cron-job.org (POST na `/actions/workflows/alert.yml/dispatches`, body `{"ref":"main"}`,
+  token fine-grained z uprawnieniem Actions: Read and write). Gdy token wygaśnie, trzeba wkleić nowy w cron-job.org.
 - Inwersję szacuje różnica temperatur na 925 i 850 hPa (ok. 750 i 1500 m n.p.m.).
   To heurystyka – przy wysokiej ocenie porównaj modele w meteoblue (link przy każdym miejscu).
